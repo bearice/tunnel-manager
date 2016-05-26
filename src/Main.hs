@@ -15,9 +15,11 @@ import Control.Exception (bracket)
 import Control.Monad
 import API
 import State
+import System.Log.Logger
 
 main :: IO()
 main = bracket createSocket destroySocket $ \(_,socket) -> do
+    updateGlobalLogger "tman" (setLevel DEBUG)
     state <- mkState
     listen socket 10
     scottySocketT def socket (withState state) routing

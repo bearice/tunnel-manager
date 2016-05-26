@@ -12,6 +12,11 @@ import Data.Aeson.Types
 import Data.Char
 import GHC.Generics
 
+eitherToJson :: ToJSON a => Either String a -> Value
+eitherToJson x = case x of
+    Left err  -> object [("Err", String $ T.pack err)]
+    Right val -> toJSON val
+
 mkJson :: (ScottyError e, Monad m) => [Pair] -> ActionT e m ()
 mkJson = json . object
 

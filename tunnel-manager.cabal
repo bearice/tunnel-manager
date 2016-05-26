@@ -42,7 +42,9 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 
+
 executable tman
+  extensions:        OverloadedStrings,FlexibleContexts,PatternGuards,QuasiQuotes,DeriveGeneric
   hs-source-dirs:    src
   -- .hs or .lhs file containing the Main module.
   main-is:           Main.hs
@@ -77,3 +79,6 @@ executable tman
                   , text-format
                   , split
                   , process
+                  , here
+                  , filepath
+                  , hslogger
