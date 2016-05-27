@@ -5,6 +5,7 @@ module API where
 import System.FilePath.Posix
 import System.Log.Logger
 import System.Process
+import System.Exit
 import Control.Monad.IO.Class
 import Control.Monad
 import GHC.Generics
@@ -18,7 +19,9 @@ import Data.Aeson hiding (json)
 import Data.Aeson.Types (emptyObject)
 import Data.Either
 import Data.String.Here
+import qualified Data.List as List
 import Data.List.Split
+import System.Posix.Escape
 import State
 import Util
 
@@ -40,10 +43,28 @@ instance ToJSON TunnelInfo
 
 dbg = debugM "tman.api"
 
+sh :: String -> IO String
+sh cmd = do
+    dbg $ "Exec: " ++ cmd
+    readCreateProcess (shell cmd) ""
+
+shJoin :: [String] -> IO String
+shJoin = sh.(List.intercalate " ")
+
+shEx :: String -> IO (Either String String)
+shEx cmd = do
+    dbg $ "Exec: " ++ cmd
+    (exit,out,err) <- readCreateProcessWithExitCode (shell cmd) ""
+    case exit of
+        ExitSuccess -> return $ Right out
+        ExitFailure _ -> return $ Left err
+
+shExJoin :: [String] -> IO (Either String String)
+shExJoin = shEx.(List.intercalate " ")
+
 tunnelList :: IO (Either String [TunnelInfo])
 tunnelList = do
-    let cmd = "docker inspect --format '{{.Config.Hostname}}' $(docker ps -a -q -f ancestor=pptp)"
-    x <- readCreateProcess (shell cmd) ""
+    x <- sh "docker inspect --format '{{.Config.Hostname}}' $(docker ps -a -q -f ancestor=pptp)"
     let lines = endBy "\n" x
     tuns <- forM lines tunnelInfo
     case partitionEithers tuns of
@@ -55,22 +76,63 @@ tunnelInfo name = do
     let path = "/data/docker/pptp_proxy/status" </> name <.> "json"
     dbg $ "Loading "++path
     j <- LBS.readFile path
-    return $ eitherDecode j
+    getExtPort $ eitherDecode j
+
+getExtPort :: Either String TunnelInfo -> IO (Either String TunnelInfo)
+getExtPort (Left t) = return $ Left t
+getExtPort (Right t) =
+    let name = API.id t in
+    case port t of
+        Just _ -> return $ Right t
+        Nothing -> do
+            let n = escape $ T.unpack name
+            x <- shJoin ["(docker port",n,"3128 || echo -1) | cut -d: -f2"]
+            let p = read x
+            return $ Right $ t { port = Just p}
+
+tunnelCreate :: String -> String -> String -> String -> IO (Either String TunnelInfo)
+tunnelCreate name server user pass = do
+    let n = escape name
+    r <- shExJoin ["docker run -d --restart=always"
+                  ,"--device /dev/ppp"
+                  ,"--cap-add=net_admin"
+                  ,"--name",n,"-h",n
+                  ,"-v /data/docker/pptp_proxy/status:/data -p 3128 pptp "
+                  ,"/init.sh ", escapeMany [server,user,pass]
+                  ]
+    case r of
+        Left err -> return $ Left err
+        Right _  -> tunnelInfo name
+
+tunnelRemove :: String -> IO (Either String String)
+tunnelRemove name = do
+    shEx $ "docker rm -f " ++ escape name
 
 tunnelRedial :: String -> IO (Either String TunnelInfo)
 tunnelRedial name = do
-    readCreateProcessWithExitCode (shell $ "docker kill -s 1 "++name) ""
-    tunnelInfo name
+    r <- shEx $ "docker kill -s 1 " ++ escape name
+    case r of
+        Left err -> return $ Left err
+        Right _  -> tunnelInfo name
 
 tunnelDown :: String -> IO (Either String TunnelInfo)
 tunnelDown name = do
-    readCreateProcessWithExitCode (shell $ "docker stop "++name) ""
-    tunnelInfo name
+    r <- shEx $ "docker stop " ++ escape name
+    case r of
+        Left err -> return $ Left err
+        Right _  -> tunnelInfo name
 
 tunnelUp :: String -> IO (Either String TunnelInfo)
 tunnelUp name = do
-    readCreateProcessWithExitCode (shell $ "docker start "++name) ""
-    tunnelInfo name
+    r <- shEx $ "docker start " ++ escape name
+    case r of
+        Left err -> return $ Left err
+        Right _  -> tunnelInfo name
+
+tunnelLogs :: String -> IO String
+tunnelLogs name = do
+    let path = "/data/docker/pptp_proxy/status" </> name <.> "log"
+    sh $ "tail " ++ escape path
 
 routing :: ScottyT L.Text WebM ()
 routing = do
@@ -83,6 +145,8 @@ PPTP Tunnel Manager v0.1
 Endpoints:
 - GET /tunnels
 - GET /tunnel/:name
+- POST /tunnel
+- DELETE /tunnel/:name
 - POST /tunnel/:name/up
 - POST /tunnel/:name/down
 - POST /tunnel/:name/redial
@@ -96,6 +160,23 @@ Endpoints:
     name <- param "name"
     info <- liftIO $ tunnelInfo name
     json $ eitherToJson info
+
+  post "/tunnel" $ do
+    name <- param "name"
+    server <- param "server"
+    user <- param "user"
+    pass <- param "pass"
+    result <- liftIO $ tunnelCreate name server user pass
+    json $ eitherToJson result
+
+  delete "/tunnel/:name" $ do
+    name <- param "name"
+    result <- liftIO $ tunnelRemove name
+    case result of
+        Left err -> do
+            raise $ L.pack err
+        Right out ->
+            text $ L.pack out
 
   post "/tunnel/:name/redial" $ do
     name <- param "name"
@@ -112,4 +193,10 @@ Endpoints:
     info <- liftIO $ tunnelUp name
     json $ eitherToJson info
 
+  get "/tunnel/:name/logs" $ do
+    name <- param "name"
+    logs <- liftIO $ tunnelLogs name
+    text $ L.pack logs
+
   notFound $ mkError "not found"
+

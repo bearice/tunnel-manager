@@ -82,3 +82,4 @@ executable tman
                   , here
                   , filepath
                   , hslogger
+                  , posix-escape
