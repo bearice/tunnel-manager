@@ -51,7 +51,7 @@ main = bracket createSocket destroySocket $ \(_,socket) -> do
       addr <- listenOn >>= \x -> case x of
         (Just a) -> return a
         otherwise -> error "Oops"
-      print $ addrAddress addr
+      --print $ addrAddress addr
       sock <- socket (addrFamily addr) Stream 0
       bind sock (addrAddress addr)
       return (addr,sock)
