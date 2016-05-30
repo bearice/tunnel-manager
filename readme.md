@@ -1,6 +1,6 @@
 # Tunnel Manager
 
-An RESTful API to control [pptp2http](bearice/pptp2http) instances
+An RESTful API to control [pptp2http](https://github.com/bearice/pptp2http) instances
 
 ## API Endpoints
 
@@ -26,16 +26,16 @@ Transfer-Encoding: chunked
 ```json
 [
     {
-        "dns1": "202.102.224.68",      //对端推送的 DNS 服务器地址
+        "dns1": "202.102.224.68",      //Server advised DNS Server
         "dns2": "202.102.227.68",
-        "external": "42.235.188.158",  //对端出口 IP
-        "id": "pptp2",                 //隧道名称 （a-zA-Z0-9)
-        "local": "172.17.0.2",         //本地网卡地址 （目前没啥用）
-        "port": 32772,                 //代理端口 （自动分配）
-        "server": "112.83.69.201",     //PPTP 服务器地址
-        "status": "CONNECTED",         //状态 CONNECTED|DISCONNECTED|INITIAL
-        "tunnel_ip": "172.16.254.7",   //隧道 IP 地址（没什么用）
-        "user": "a051602"              //用户名
+        "external": "42.235.188.158",  //Tunnel public ip
+        "id": "pptp2",                 //Name
+        "local": "172.17.0.2",         //Instance IP
+        "port": 32772,                 //Mapped proxy port
+        "server": "112.83.69.201",     //PPTP Server address
+        "status": "CONNECTED",         //CONNECTED|DISCONNECTED|INITIAL
+        "tunnel_ip": "172.16.254.7",   //Tunnel local address
+        "user": "a051602"              //Username
     },
     {
         "dns1": "202.103.24.68",
