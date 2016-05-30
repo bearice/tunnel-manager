@@ -44,7 +44,7 @@ cabal-version:       >=1.8
 
 
 executable tman
-  extensions:        OverloadedStrings,FlexibleContexts,PatternGuards,QuasiQuotes,DeriveGeneric
+  extensions:        OverloadedStrings,FlexibleContexts,PatternGuards,QuasiQuotes,DeriveGeneric,TemplateHaskell
   hs-source-dirs:    src
   -- .hs or .lhs file containing the Main module.
   main-is:           Main.hs
@@ -83,3 +83,4 @@ executable tman
                   , filepath
                   , hslogger
                   , posix-escape
+                  , hflags

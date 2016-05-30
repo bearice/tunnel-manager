@@ -24,6 +24,7 @@ import Data.List.Split
 import System.Posix.Escape
 import State
 import Util
+import Flags
 
 data TunnelInfo = Tunnel {
            id        :: T.Text
@@ -64,7 +65,7 @@ shExJoin = shEx.(List.intercalate " ")
 
 tunnelList :: IO (Either String [TunnelInfo])
 tunnelList = do
-    x <- sh "docker inspect --format '{{.Config.Hostname}}' $(docker ps -a -q -f ancestor=pptp)"
+    x <- sh $ "docker inspect --format '{{.Config.Hostname}}' $(docker ps -a -q -f ancestor="++flags_image++")"
     let lines = endBy "\n" x
     tuns <- forM lines tunnelInfo
     case partitionEithers tuns of
@@ -73,7 +74,7 @@ tunnelList = do
 
 tunnelInfo :: String -> IO (Either String TunnelInfo)
 tunnelInfo name = do
-    let path = "/data/docker/pptp_proxy/status" </> name <.> "json"
+    let path = flags_dataDir </> name <.> "json"
     dbg $ "Loading "++path
     j <- LBS.readFile path
     getExtPort $ eitherDecode j
@@ -97,7 +98,7 @@ tunnelCreate name server user pass = do
                   ,"--device /dev/ppp"
                   ,"--cap-add=net_admin"
                   ,"--name",n,"-h",n
-                  ,"-v /data/docker/pptp_proxy/status:/data -p 3128 pptp "
+                  ,"-v /data/docker/pptp_proxy/status:/data -p 3128", flags_image
                   ,"/init.sh ", escapeMany [server,user,pass]
                   ]
     case r of
@@ -131,7 +132,7 @@ tunnelUp name = do
 
 tunnelLogs :: String -> IO String
 tunnelLogs name = do
-    let path = "/data/docker/pptp_proxy/status" </> name <.> "log"
+    let path = flags_dataDir </> name <.> "log"
     sh $ "tail " ++ escape path
 
 routing :: ScottyT L.Text WebM ()
