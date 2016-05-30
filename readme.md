@@ -1,5 +1,13 @@
-# 获取隧道列表 `GET /tunnels`
+# Tunnel Manager
 
+An RESTful API to control [pptp2http](bearice/pptp2http) instances
+
+## API Endpoints
+
+### `GET /tunnels`
+ 
+Get list of tunnels
+ 
 ```
 GET /tunnels HTTP/1.1
 Accept: */*
@@ -44,7 +52,10 @@ Transfer-Encoding: chunked
 ]
 ```
 
-# 获取隧道信息 `GET /tunnel/[:name]`
+### `GET /tunnel/[:name]`
+
+Get tunnel detail
+
 
 ```
 GET /tunnel/pptp1 HTTP/1.1
@@ -76,16 +87,18 @@ Transfer-Encoding: chunked
 }
 ```
 
-# 创建隧道 `POST /tunnel`
+### `POST /tunnel`
 
-## 参数
+Create tunnel
 
- - name 隧道名称
- - server 服务器地址
- - user 用户名
- - pass 密码
- 
- 
+#### Arguments
+
+ - name Name of tunnel
+ - server PPTP Server Address
+ - user Username
+ - pass Password
+
+
 ```
 POST /tunnel HTTP/1.1
 Accept: */*
@@ -120,7 +133,9 @@ Transfer-Encoding: chunked
 }
 ```
 
-# 删除隧道 `DELETE /tunnel/[:name]`
+### `DELETE /tunnel/[:name]`
+
+Delete Tunnel
 
 ```
 DELETE /tunnel/pptp2 HTTP/1.1
@@ -140,7 +155,9 @@ Transfer-Encoding: chunked
 pptp2
 ```
 
-# 重播（更换出口 IP） `POST /tunnel/[:name]/redial`
+#`POST /tunnel/[:name]/redial`
+
+Redial (disconnect then connect)
 
 ```
 POST /tunnel/pptp1/redial HTTP/1.1
@@ -173,7 +190,9 @@ Transfer-Encoding: chunked
 }
 ```
 
-# 停用隧道 `POST /tunnel/[:name]/down`
+### `POST /tunnel/[:name]/down`
+
+Stop instance
 
 ```
 POST /tunnel/pptp1/down HTTP/1.1
@@ -206,7 +225,9 @@ Transfer-Encoding: chunked
 }
 ```
 
-# 启用隧道 `POST /tunnel/[:name]/up`
+### `POST /tunnel/[:name]/up`
+
+Start instance
 
 ```
 POST /tunnel/pptp1/up HTTP/1.1
