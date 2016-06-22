@@ -17,6 +17,7 @@ import qualified Data.Text.Lazy as L
 import qualified Data.ByteString.Lazy as LBS
 import Data.Aeson hiding (json)
 import Data.Aeson.Types (emptyObject)
+import Data.Char
 import Data.Either
 import Data.String.Here
 import qualified Data.List as List
@@ -41,6 +42,9 @@ data TunnelInfo = Tunnel {
 
 instance FromJSON TunnelInfo
 instance ToJSON TunnelInfo
+
+isPortNumber :: String -> Bool
+isPortNumber xs = all isDigit xs
 
 dbg = debugM "tman.api"
 
@@ -91,14 +95,20 @@ getExtPort (Right t) =
             let p = read x
             return $ Right $ t { port = Just p}
 
-tunnelCreate :: String -> String -> String -> String -> IO (Either String TunnelInfo)
-tunnelCreate name server user pass = do
+tunnelCreate :: String -> String -> String -> String -> Maybe String -> IO (Either String TunnelInfo)
+tunnelCreate ""   _      _    _    _ = return $ Left "Name must not be empty"
+tunnelCreate _    ""     _    _    _ = return $ Left "Server must not be empty"
+tunnelCreate name server user pass port = do
     let n = escape name
+    let portDef = case port of
+            Just p  -> "-p "++p++":3128"
+            Nothing -> "-p 3128"
+
     r <- shExJoin ["docker run -d --restart=always"
                   ,"--device /dev/ppp"
                   ,"--cap-add=net_admin"
                   ,"--name",n,"-h",n
-                  ,"-v /data/docker/pptp_proxy/status:/data -p 3128", flags_image
+                  ,"-v "++flags_dataDir++":/data", portDef, flags_image
                   ,"/init.sh ", escapeMany [server,user,pass]
                   ]
     case r of
@@ -138,7 +148,7 @@ tunnelLogs name = do
 routing :: ScottyT L.Text WebM ()
 routing = do
   middleware logStdoutDev
-  middleware $ addHeaders [("Server","tman/0.1")]
+  middleware $ addHeaders [("Server","tman/0.1.1")]
 
   get  "/" $ do
     text $ [here|=^.^= Nyan~
@@ -167,7 +177,14 @@ Endpoints:
     server <- param "server"
     user <- param "user"
     pass <- param "pass"
-    result <- liftIO $ tunnelCreate name server user pass
+    tport <- param "port"
+    port <- if L.null tport
+        then return Nothing
+        else let s = L.unpack tport in
+            if isPortNumber s
+                then return $ Just s
+                else raise "Port must be an number"
+    result <- liftIO $ tunnelCreate name server user pass port
     json $ eitherToJson result
 
   delete "/tunnel/:name" $ do
