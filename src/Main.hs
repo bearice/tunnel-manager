@@ -28,6 +28,7 @@ main = bracket createSocket destroySocket $ \(_,socket) -> do
         (Just a) -> return a
         otherwise -> error $ "Can not parse sockaddr: "++flags_listen
       sock <- socket (addrFamily addr) Stream 0
+      setSocketOption sock ReuseAddr 1
       bind sock (addrAddress addr)
       return (addr,sock)
 
